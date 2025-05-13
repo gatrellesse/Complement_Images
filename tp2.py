@@ -1,7 +1,6 @@
 import numpy as np
 from skimage.morphology import erosion, dilation, binary_erosion, opening, closing, white_tophat, reconstruction, black_tophat, skeletonize, convex_hull_image, thin
 from skimage.morphology import square, diamond, octagon, rectangle, star, disk, remove_small_objects, local_maxima
-from skimage import io, segmentation, color
 from skimage.measure import label
 from skimage.filters import gaussian
 from skimage.morphology import disk, binary_erosion,binary_dilation,binary_opening
@@ -18,51 +17,42 @@ from scipy import ndimage as ndi
 import numpy as np
 
 import matplotlib.pyplot as plt
+from skimage.filters import gaussian
+from skimage.morphology import disk, remove_small_objects
+from skimage.feature import hessian_matrix, hessian_matrix_eigvals
+from scipy import ndimage as ndi
+import numpy as np
+def alternating_sequential_filter(img, max_radius=7):
+    """Applies opening followed by closing with increasing radii."""
+    filtered = img.copy()
+    for r in range(1, max_radius + 1):
+        selem = disk(r)
+        filtered = opening(filtered, selem)
+        filtered = closing(filtered, selem)
+    return filtered
 
-def plot_histogram(img, title="Histogram"):
-    plt.figure()
-    plt.hist(img.ravel(), bins=256, range=(0, 1), color='gray')
-    plt.title(title)
-    plt.xlabel('Pixel intensity')
-    plt.ylabel('Frequency')
-    plt.grid(True)
-    plt.show()
+def my_segmentation2(img, img_mask, seuil):
+    # Step 1: Normalize image
+    img = img.astype(np.float32) / 255.0
+    # Step 2: Smooth the image (optional but helps noise reduction)
+
+        
+    # Step 3: Hessian matrix and eigenvalues
+    Hxx, Hxy, Hyy = hessian_matrix(img, sigma=1.00, order='rc')
+    lambda1, lambda2 = hessian_matrix_eigvals([Hxx, Hxy, Hyy])
+    # Step 4: Ridge-like vessel detection
+    ridge_response = (lambda2 < 0) & (np.abs(lambda1) < 0.5 * np.abs(lambda2))
+    binary = (ridge_response & img_mask) 
 
 
-def my_segmentation(img, img_mask):
-    # Step 1: Preprocess image
-    img = img.astype(np.float32)
-    img /= 255.0  # Normalize to [0, 1]
 
-    # Step 2: Apply Gaussian smoothing to reduce noise
-    img = gaussian(img, sigma=0.75)
-
-    # Step 3: Apply black hat transformation
-    # Black hat highlights dark structures (vessels) on light background
-    black_hat_img = black_tophat(img, diamond(3))  # Apply black tophat with disk kernel
-
-    # Step 4: Gradient image (vessel edges show up as high gradient)
-    gradient = filters.sobel(black_hat_img)
-
-    # Step 5: Threshold to get binary foreground
-    binary = gradient > filters.threshold_otsu(gradient)
-
-    # Step 6: Distance transform
-    distance = ndi.distance_transform_edt(binary)
-
-    # Step 7: Local maxima and markers
-    local_maxi = local_maxima(distance)
-    markers = ndi.label(local_maxi)[0]
-
-    # Step 8: Watershed segmentation
-    labels = segmentation.watershed(-distance, markers, mask=binary)
-
-    # Step 9: Post-process
-    img_out = (labels > 0) & img_mask
-    img_out = remove_small_objects(img_out, min_size=32)
+    # Step 5: Post-processing
+    img_out = remove_small_objects(binary, min_size=32)
     img_out = ndi.binary_fill_holes(img_out)
-    
+    img_out = np.logical_not(img_out)
+
     return img_out
+
 
 
 def evaluate(img_out, img_GT):
@@ -79,7 +69,8 @@ def evaluate(img_out, img_GT):
 #Ouvrir l'image originale en niveau de gris
 img =  np.asarray(Image.open('./images_IOSTAR/star32_ODC.jpg')).astype(np.uint8)
 print(img.shape)
-
+# img = img.astype(np.float32) / 255.0
+# plot_histogram(img, title="Original Image Histogram")
 
 nrows, ncols = img.shape
 row, col = np.ogrid[:nrows, :ncols]
@@ -88,7 +79,8 @@ img_mask = (np.ones(img.shape)).astype(np.bool_)
 invalid_pixels = ((row - nrows/2)**2 + (col - ncols/2)**2 >= (nrows / 2)**2)
 img_mask[invalid_pixels] = 0
 
-img_out = my_segmentation(img,img_mask)
+img_out = my_segmentation2(img,img_mask,100)
+img_out[invalid_pixels] = 0
 #Ouvrir l'image Verite Terrain en booleen
 img_GT =  np.asarray(Image.open('./images_IOSTAR/GT_32.png')).astype(np.uint32)
 
