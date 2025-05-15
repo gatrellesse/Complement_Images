@@ -1,23 +1,14 @@
 import numpy as np
-from skimage.morphology import erosion, dilation, binary_erosion, opening, closing, white_tophat, reconstruction, black_tophat, skeletonize, convex_hull_image, thin
-from skimage.morphology import square, diamond, octagon, rectangle, star, disk, remove_small_objects, local_maxima
-from skimage import io, segmentation, color
-from skimage.measure import label
-from skimage.filters import gaussian
-from skimage.morphology import disk, binary_erosion,binary_dilation,binary_opening
-from skimage.feature import peak_local_max
 from scipy import ndimage as ndi
 from PIL import Image
-from skimage import data, filters, exposure
-from matplotlib import pyplot as plt
-from skimage.feature import hessian_matrix, hessian_matrix_eigvals
-
-from skimage import filters, segmentation, morphology
-from skimage.morphology import remove_small_objects, local_maxima
-from scipy import ndimage as ndi
-import numpy as np
-
 import matplotlib.pyplot as plt
+from skimage.morphology import erosion, dilation, binary_erosion, opening, closing, white_tophat, reconstruction, black_tophat, skeletonize, convex_hull_image, thin
+from skimage.morphology import square, diamond, octagon, rectangle, star, disk, ellipse
+from skimage import segmentation, filters, exposure
+from skimage.morphology import binary_erosion,binary_dilation,binary_opening
+from skimage.feature import peak_local_max
+from skimage.morphology import remove_small_objects, local_maxima
+
 
 def plot_histogram(img, title="Histogram"):
     plt.figure()
@@ -33,20 +24,26 @@ def my_segmentation(img, img_mask):
     # Step 1: Preprocess image
     img = img.astype(np.float32)
     img /= 255.0  # Normalize to [0, 1]
-
+    img = exposure.equalize_adapthist(img, clip_limit=3)  # CLAHE
     # Step 2: Apply Gaussian smoothing to reduce noise
-    img = gaussian(img, sigma=0.75)
-
+    img = filters.gaussian(img, sigma=0.40)
+    img = filters.rank.median(img, disk(3))
     # Step 3: Apply black hat transformation
-    # Black hat highlights dark structures (vessels) on light background
-    black_hat_img = black_tophat(img, diamond(3))  # Apply black tophat with disk kernel
-
+    # Black hat highlights dark structures (ves
+    # sels) on light background
+    black_hat_img = black_tophat(img, ellipse(2,1))  # Apply black tophat with disk kernel
+    black_hat_img2 = black_tophat(img, disk(1))
     # Step 4: Gradient image (vessel edges show up as high gradient)
     gradient = filters.sobel(black_hat_img)
-
+    gradient2 = filters.sobel(black_hat_img2)
     # Step 5: Threshold to get binary foreground
-    binary = gradient > filters.threshold_otsu(gradient)
-
+    #print('Gradient min:', gradient.min(), 'max:', gradient.max(), "treshold:", filters.threshold_otsu(gradient))
+    binary = gradient > 0.95*filters.threshold_otsu(gradient)
+    binary2 = gradient2 > filters.threshold_otsu(gradient2)
+    # Combine the two binary images
+    binary = (binary | binary2) 
+    binary = remove_small_objects(binary, min_size=32)
+    binary = ndi.binary_fill_holes(binary)
     # Step 6: Distance transform
     distance = ndi.distance_transform_edt(binary)
 
@@ -58,9 +55,7 @@ def my_segmentation(img, img_mask):
     labels = segmentation.watershed(-distance, markers, mask=binary)
 
     # Step 9: Post-process
-    img_out = (labels > 0) & img_mask
-    img_out = remove_small_objects(img_out, min_size=32)
-    img_out = ndi.binary_fill_holes(img_out)
+    img_out = (labels > 0) 
     
     return img_out
 
@@ -77,7 +72,7 @@ def evaluate(img_out, img_GT):
     return ACCU, RECALL, img_out_skel, GT_skel
 
 #Ouvrir l'image originale en niveau de gris
-img =  np.asarray(Image.open('./images_IOSTAR/star32_ODC.jpg')).astype(np.uint8)
+img =  np.asarray(Image.open('./images_IOSTAR/star08_OSN.jpg')).astype(np.uint8)
 print(img.shape)
 
 
@@ -90,7 +85,7 @@ img_mask[invalid_pixels] = 0
 
 img_out = my_segmentation(img,img_mask)
 #Ouvrir l'image Verite Terrain en booleen
-img_GT =  np.asarray(Image.open('./images_IOSTAR/GT_32.png')).astype(np.uint32)
+img_GT =  np.asarray(Image.open('./images_IOSTAR/GT_08.png')).astype(np.uint8)
 
 ACCU, RECALL, img_out_skel, GT_skel = evaluate(img_out, img_GT)
 print('Accuracy =', ACCU,', Recall =', RECALL)

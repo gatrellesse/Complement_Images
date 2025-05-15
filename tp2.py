@@ -1,50 +1,32 @@
 import numpy as np
+from scipy import ndimage as ndi
+from PIL import Image
+import matplotlib.pyplot as plt
 from skimage.morphology import erosion, dilation, binary_erosion, opening, closing, white_tophat, reconstruction, black_tophat, skeletonize, convex_hull_image, thin
 from skimage.morphology import square, diamond, octagon, rectangle, star, disk, remove_small_objects, local_maxima
 from skimage.measure import label
 from skimage.filters import gaussian
-from skimage.morphology import disk, binary_erosion,binary_dilation,binary_opening
-from skimage.feature import peak_local_max
-from scipy import ndimage as ndi
-from PIL import Image
-from skimage import data, filters, exposure
-from matplotlib import pyplot as plt
-from skimage.feature import hessian_matrix, hessian_matrix_eigvals
+from skimage.morphology import binary_erosion,binary_dilation,binary_opening
+from skimage.feature import peak_local_max, hessian_matrix, hessian_matrix_eigvals
+from skimage import  filters, exposure
+from skimage import  segmentation
 
-from skimage import filters, segmentation, morphology
-from skimage.morphology import remove_small_objects, local_maxima
-from scipy import ndimage as ndi
-import numpy as np
 
-import matplotlib.pyplot as plt
-from skimage.filters import gaussian
-from skimage.morphology import disk, remove_small_objects
-from skimage.feature import hessian_matrix, hessian_matrix_eigvals
-from scipy import ndimage as ndi
-import numpy as np
-def alternating_sequential_filter(img, max_radius=7):
-    """Applies opening followed by closing with increasing radii."""
-    filtered = img.copy()
-    for r in range(1, max_radius + 1):
-        selem = disk(r)
-        filtered = opening(filtered, selem)
-        filtered = closing(filtered, selem)
-    return filtered
+
 
 def my_segmentation2(img, img_mask, seuil):
     # Step 1: Normalize image
     img = img.astype(np.float32) / 255.0
     # Step 2: Smooth the image (optional but helps noise reduction)
+    img = exposure.equalize_adapthist(img, clip_limit=3)  # CLAHE
+    img = filters.rank.median(img, disk(3))
 
-        
     # Step 3: Hessian matrix and eigenvalues
-    Hxx, Hxy, Hyy = hessian_matrix(img, sigma=1.00, order='rc')
+    Hxx, Hxy, Hyy = hessian_matrix(img, sigma=2.00, order='rc')
     lambda1, lambda2 = hessian_matrix_eigvals([Hxx, Hxy, Hyy])
     # Step 4: Ridge-like vessel detection
-    ridge_response = (lambda2 < 0) & (np.abs(lambda1) < 0.5 * np.abs(lambda2))
+    ridge_response = (lambda2 < 0) & (np.abs(lambda1) < 0.95 * np.abs(lambda2))
     binary = (ridge_response & img_mask) 
-
-
 
     # Step 5: Post-processing
     img_out = remove_small_objects(binary, min_size=32)
