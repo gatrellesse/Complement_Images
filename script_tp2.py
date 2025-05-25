@@ -9,6 +9,7 @@ from skimage.morphology import binary_erosion,binary_dilation,binary_opening
 from skimage.feature import peak_local_max
 from skimage.morphology import remove_small_objects, local_maxima
 
+from scipy.ndimage import rotate
 
 def plot_histogram(img, title="Histogram"):
     plt.figure()
@@ -32,7 +33,10 @@ def my_segmentation(img, img_mask):
     # Black hat highlights dark structures (ves
     # sels) on light background
     black_hat_img = black_tophat(img, ellipse(2,1))  # Apply black tophat with disk kernel
-    black_hat_img2 = black_tophat(img, disk(1))
+    black_hat_img2 = black_tophat(img, rectangle(1,10))
+    
+
+
     # Step 4: Gradient image (vessel edges show up as high gradient)
     gradient = filters.sobel(black_hat_img)
     gradient2 = filters.sobel(black_hat_img2)
