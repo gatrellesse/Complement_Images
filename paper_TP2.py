@@ -124,7 +124,7 @@ def paper_app(img, img_mask, seuil):
     att0 = invert(h) - opening(invert(h), disk(dmax/2 + 2)) #background --> 0
     
     sigma1 = dmax/6
-    sigma2 = dmax/3
+    sigma2 = dmax/4
     att1 = LoG_filter(att0, sigma1)
     att2 = LoG_filter(att0, sigma2)
     thresh1 = filters.threshold_otsu(att1)
