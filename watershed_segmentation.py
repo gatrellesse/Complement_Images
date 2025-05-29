@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import ndimage as ndi
 from skimage.morphology import black_tophat
-from skimage.morphology import rectangle, disk, ellipse
+from skimage.morphology import footprint_rectangle, disk, ellipse
 from skimage import segmentation, filters, exposure
 from skimage.morphology import remove_small_objects, local_maxima
 
@@ -17,7 +17,7 @@ def watershed_segmentation(img, img_mask):
     # Black hat highlights dark structures (ves
     # sels) on light background
     black_hat_img = black_tophat(img, ellipse(2,1))  # Apply black tophat with disk kernel
-    black_hat_img2 = black_tophat(img, rectangle(1,10))
+    black_hat_img2 = black_tophat(img, footprint_rectangle((1,10)))
     
     # Step 4: Gradient image (vessel edges show up as high gradient)
     gradient = filters.sobel(black_hat_img)

@@ -14,7 +14,7 @@ def frangi_segmentation(img, img_mask):
 
     smoothed = gaussian_filter(image_norm, sigma=1)
 
-    vessels = frangi(smoothed, scale_range=(1, 3), scale_step=0.5)
+    vessels = frangi(smoothed, sigmas=(1, 3), scale_step=0.5)
 
     vessels_rescaled = rescale_intensity(vessels, in_range='image', out_range=(0, 1))
 

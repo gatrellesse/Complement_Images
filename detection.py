@@ -1,18 +1,11 @@
 import numpy as np
-from scipy import ndimage as ndi
 from PIL import Image
+from pathlib import Path
+import os
 import matplotlib.pyplot as plt
-from skimage.morphology import erosion, dilation, binary_erosion, opening, closing, white_tophat, reconstruction, black_tophat, skeletonize, convex_hull_image, thin
-from skimage.morphology import square, diamond, octagon, rectangle, star, disk, remove_small_objects, local_maxima
-from skimage.measure import label
-from skimage.filters import gaussian
-from skimage.morphology import binary_erosion,binary_dilation,binary_opening
-from skimage.feature import peak_local_max, hessian_matrix, hessian_matrix_eigvals
-from skimage import  filters, exposure
-from skimage import  segmentation
-from skimage.util import invert
+from skimage.morphology import skeletonize
 
-from paper_segmentation import LoG_filter, path_opening, paper_segmentation
+from paper_segmentation import paper_segmentation
 from frangi_segmentation import frangi_segmentation
 from watershed_segmentation import watershed_segmentation
 
@@ -93,35 +86,79 @@ def evaluate(img_out, img_GT):
     return ACCU, RECALL, img_out_skel, GT_skel
 
 #Ouvrir l'image originale en niveau de gris
-img =  np.asarray(Image.open('./images_IOSTAR/img_08.jpg')).astype(np.uint8)
-print(img.shape)
+# Get the path of the current script
+current_file = Path(__file__).resolve()
+project_root = current_file.parent 
+images_folder = project_root / 'images_IOSTAR'
+water_precision, water_recall = [], []
+paper_precision, paper_recall = [], []
+frangi_precision, frangi_recall = [], []
+for i in range(1,11):
+    img_file = images_folder / f'img_{i}.jpg'
+    img =  np.asarray(Image.open(img_file)).astype(np.uint8)
+    print(img.shape)
 
-nrows, ncols = img.shape
-row, col = np.ogrid[:nrows, :ncols]
-#On ne considere que les pixels dans le disque inscrit 
-img_mask = (np.ones(img.shape)).astype(np.bool_)
-invalid_pixels = ((row - nrows/2)**2 + (col - ncols/2)**2 >= (nrows / 2)**2)
-img_mask[invalid_pixels] = 0
+    nrows, ncols = img.shape
+    row, col = np.ogrid[:nrows, :ncols]
+    #On ne considere que les pixels dans le disque inscrit 
+    img_mask = (np.ones(img.shape)).astype(np.bool_)
+    invalid_pixels = ((row - nrows/2)**2 + (col - ncols/2)**2 >= (nrows / 2)**2)
+    img_mask[invalid_pixels] = 0
 
-img_out_water = watershed_segmentation(img,img_mask)
-img_out_water[invalid_pixels] = 0
+    img_out_water = watershed_segmentation(img,img_mask)
+    img_out_water[invalid_pixels] = 0
 
-img_out_paper = paper_segmentation(img,img_mask)
-img_out_paper[invalid_pixels] = 0
+    img_out_paper = paper_segmentation(img,img_mask)
+    img_out_paper[invalid_pixels] = 0
 
-img_out_frangi = frangi_segmentation(img,img_mask)
-img_out_frangi[invalid_pixels] = 0
+    img_out_frangi = frangi_segmentation(img,img_mask)
+    img_out_frangi[invalid_pixels] = 0
 
-#Ouvrir l'image Verite Terrain en booleen
-img_GT =  np.asarray(Image.open('./images_IOSTAR/GT_08.png')).astype(np.uint32)
+    #Ouvrir l'image Verite Terrain en booleen
+    gt_file = images_folder / f'GT_{i}.png'
+    img_GT =  np.asarray(Image.open(gt_file)).astype(np.uint32)
 
-ACCU_water, RECALL_water, img_skel_water, GT_skel = evaluate(img_out_water, img_GT)
-ACCU_paper, RECALL_paper, img_skel_paper, GT_skel = evaluate(img_out_paper, img_GT)
-ACCU_frangi, RECALL_frangi, img_skel_frangi, GT_skel = evaluate(img_out_frangi, img_GT)
-print('Watershed: Accuracy =', ACCU_water, ', Recall =', RECALL_water)
-print('Paper: Accuracy =', ACCU_paper, ', Recall =', RECALL_paper)
-print('Frangi: Accuracy =', ACCU_frangi, ', Recall =', RECALL_frangi)
+    ACCU_water, RECALL_water, img_skel_water, GT_skel = evaluate(img_out_water, img_GT)
+    ACCU_paper, RECALL_paper, img_skel_paper, GT_skel = evaluate(img_out_paper, img_GT)
+    ACCU_frangi, RECALL_frangi, img_skel_frangi, GT_skel = evaluate(img_out_frangi, img_GT)
+    water_precision.append(ACCU_water)
+    water_recall.append(RECALL_water)
+    paper_precision.append(ACCU_paper)
+    paper_recall.append(RECALL_paper)
+    frangi_precision.append(ACCU_frangi)
+    frangi_recall.append(RECALL_frangi)
+    print(f'Image {i} processed')
+    # print('Watershed: Accuracy =', ACCU_water, ', Recall =', RECALL_water)
+    # print('Paper: Accuracy =', ACCU_paper, ', Recall =', RECALL_paper)
+    # print('Frangi: Accuracy =', ACCU_frangi, ', Recall =', RECALL_frangi)
 
-plot_results(img, img_out_water, img_out_paper, img_out_frangi, img_GT,
-             img_skel_water, img_skel_paper, img_skel_frangi, GT_skel)
+    # plot_results(img, img_out_water, img_out_paper, img_out_frangi, img_GT,
+    #              img_skel_water, img_skel_paper, img_skel_frangi, GT_skel)
 
+# Precision Plot
+x_vals = list(range(1, 11))
+
+plt.figure(figsize=(10, 5))
+plt.plot(x_vals, water_precision, label='Watershed', color='blue')
+plt.plot(x_vals, paper_precision, label='Paper', color='green')
+plt.plot(x_vals, frangi_precision, label='Frangi', color='red')
+plt.xlabel('Image Index')
+plt.ylabel('Precision')
+plt.title('Precision per Image')
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+# Recall Plot
+plt.figure(figsize=(10, 5))
+plt.plot(x_vals, water_recall, label='Watershed', color='blue')
+plt.plot(x_vals, paper_recall, label='Paper', color='green')
+plt.plot(x_vals, frangi_recall, label='Frangi', color='red')
+plt.xlabel('Image Index')
+plt.ylabel('Recall')
+plt.title('Recall per Image')
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
