@@ -81,18 +81,19 @@ def evaluate(img_out, img_GT):
     FP = np.sum(img_out_skel & ~img_GT) # Faux positifs
     FN = np.sum(GT_skel & ~img_out) # Faux negatifs
 
+    F1 = 2 * TP / (2 * TP + FP + FN) # F1 score
     ACCU = TP / (TP + FP) # Precision
     RECALL = TP / (TP + FN) # Rappel
-    return ACCU, RECALL, img_out_skel, GT_skel
+    return ACCU, RECALL, F1,img_out_skel, GT_skel
 
 #Ouvrir l'image originale en niveau de gris
 # Get the path of the current script
 current_file = Path(__file__).resolve()
 project_root = current_file.parent 
 images_folder = project_root / 'images_IOSTAR'
-water_precision, water_recall = [], []
-paper_precision, paper_recall = [], []
-frangi_precision, frangi_recall = [], []
+water_precision, water_recall, water_F1 = [], [], []
+paper_precision, paper_recall, paper_F1 = [], [], []
+frangi_precision, frangi_recall, frangi_F1 = [], [], []
 for i in range(1,11):
     img_file = images_folder / f'img_{i}.jpg'
     img =  np.asarray(Image.open(img_file)).astype(np.uint8)
@@ -118,15 +119,18 @@ for i in range(1,11):
     gt_file = images_folder / f'GT_{i}.png'
     img_GT =  np.asarray(Image.open(gt_file)).astype(np.uint32)
 
-    ACCU_water, RECALL_water, img_skel_water, GT_skel = evaluate(img_out_water, img_GT)
-    ACCU_paper, RECALL_paper, img_skel_paper, GT_skel = evaluate(img_out_paper, img_GT)
-    ACCU_frangi, RECALL_frangi, img_skel_frangi, GT_skel = evaluate(img_out_frangi, img_GT)
+    ACCU_water, RECALL_water, F1_water, img_skel_water, GT_skel = evaluate(img_out_water, img_GT)
+    ACCU_paper, RECALL_paper, F1_paper, img_skel_paper, GT_skel = evaluate(img_out_paper, img_GT)
+    ACCU_frangi, RECALL_frangi, F1_frangi, img_skel_frangi, GT_skel = evaluate(img_out_frangi, img_GT)
     water_precision.append(ACCU_water)
     water_recall.append(RECALL_water)
+    water_F1.append(F1_water)
     paper_precision.append(ACCU_paper)
     paper_recall.append(RECALL_paper)
+    paper_F1.append(F1_paper)
     frangi_precision.append(ACCU_frangi)
     frangi_recall.append(RECALL_frangi)
+    frangi_F1.append(F1_frangi)
     print(f'Image {i} processed')
     # print('Watershed: Accuracy =', ACCU_water, ', Recall =', RECALL_water)
     # print('Paper: Accuracy =', ACCU_paper, ', Recall =', RECALL_paper)
@@ -158,6 +162,18 @@ plt.plot(x_vals, frangi_recall, label='Frangi', color='red')
 plt.xlabel('Image Index')
 plt.ylabel('Recall')
 plt.title('Recall per Image')
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(10, 5))
+plt.plot(x_vals, water_F1, label='Watershed', color='blue')
+plt.plot(x_vals, paper_F1, label='Paper', color='green')
+plt.plot(x_vals, frangi_F1, label='Frangi', color='red')
+plt.xlabel('Image Index')
+plt.ylabel('F1')
+plt.title('F1 score per Image')
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
