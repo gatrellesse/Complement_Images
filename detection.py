@@ -9,8 +9,10 @@ from paper_segmentation import paper_segmentation
 from frangi_segmentation import frangi_segmentation
 from watershed_segmentation import watershed_segmentation
 
-def plot_results(img, img_out_water, img_out_paper, img_out_Frangi, img_GT,
+def plot_results(img_name, img, img_out_water, img_out_paper, img_out_Frangi, img_GT,
                  img_skel_water, img_skel_paper, img_skel_Frangi, GT_skel):
+    
+    output_folder = Path("images_output")
     # --- First Figure: Segmentations ---
     plt.figure(figsize=(18, 5))
     
@@ -40,7 +42,9 @@ def plot_results(img, img_out_water, img_out_paper, img_out_Frangi, img_GT,
     plt.axis('off')
     
     plt.tight_layout()
-    plt.show()
+    # plt.show()
+    img_Seg = output_folder / f"{img_name}_segmentations.jpg"
+    plt.savefig(img_Seg, bbox_inches='tight')
 
     # --- Second Figure: Skeletons ---
     plt.figure(figsize=(18, 5))
@@ -71,7 +75,10 @@ def plot_results(img, img_out_water, img_out_paper, img_out_Frangi, img_GT,
     plt.axis('off')
 
     plt.tight_layout()
-    plt.show()
+    # plt.show()
+    img_Ske = output_folder / f"{img_name}_skeletons.jpg"
+    plt.savefig(img_Ske, bbox_inches='tight')
+
 
 
 def evaluate(img_out, img_GT):
@@ -135,9 +142,9 @@ for i in range(1,11):
     # print('Watershed: Accuracy =', ACCU_water, ', Recall =', RECALL_water)
     # print('Paper: Accuracy =', ACCU_paper, ', Recall =', RECALL_paper)
     # print('Frangi: Accuracy =', ACCU_frangi, ', Recall =', RECALL_frangi)
-
-    # plot_results(img, img_out_water, img_out_paper, img_out_frangi, img_GT,
-    #              img_skel_water, img_skel_paper, img_skel_frangi, GT_skel)
+    img_name = f'img_{i}'
+    plot_results(img_name,img, img_out_water, img_out_paper, img_out_frangi, img_GT,
+                 img_skel_water, img_skel_paper, img_skel_frangi, GT_skel)
 
 # Precision Plot
 x_vals = list(range(1, 11))
@@ -152,7 +159,7 @@ plt.title('Precision per Image')
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
-plt.show()
+# plt.show()
 
 # Recall Plot
 plt.figure(figsize=(10, 5))
@@ -165,7 +172,7 @@ plt.title('Recall per Image')
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
-plt.show()
+# plt.show()
 
 plt.figure(figsize=(10, 5))
 plt.plot(x_vals, water_F1, label='Watershed', color='blue')
@@ -177,4 +184,4 @@ plt.title('F1 score per Image')
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
-plt.show()
+# plt.show()
